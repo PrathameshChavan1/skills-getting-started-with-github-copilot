@@ -12,19 +12,37 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Clear loading message
       activitiesList.innerHTML = "";
+      activitySelect.innerHTML = '<option value="">Select an activity</option>';
 
       // Populate activities list
       Object.entries(activities).forEach(([name, details]) => {
         const activityCard = document.createElement("div");
         activityCard.className = "activity-card";
 
-        const spotsLeft = details.max_participants - details.participants.length;
+        const spotsLeft = details.max_participants - (details.participants?.length || 0);
+
+        // Build participants HTML (safe-escaped)
+        const participants = Array.isArray(details.participants) ? details.participants : [];
+        let participantsHtml;
+        if (participants.length > 0) {
+          const items = participants
+            .map((p) => {
+              const label = typeof p === "string" ? p : (p.name || p.email || String(p));
+              const initials = getInitials(label);
+              return `<li><span class="avatar">${escapeHtml(initials)}</span><span class="name">${escapeHtml(label)}</span></li>`;
+            })
+            .join("");
+          participantsHtml = `<div class="participants"><h5>Participants</h5><ul>${items}</ul></div>`;
+        } else {
+          participantsHtml = `<div class="participants"><h5>Participants</h5><ul><li class="empty">No participants yet</li></ul></div>`;
+        }
 
         activityCard.innerHTML = `
-          <h4>${name}</h4>
-          <p>${details.description}</p>
-          <p><strong>Schedule:</strong> ${details.schedule}</p>
+          <h4>${escapeHtml(name)}</h4>
+          <p>${escapeHtml(details.description || "")}</p>
+          <p><strong>Schedule:</strong> ${escapeHtml(details.schedule || "")}</p>
           <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
+          ${participantsHtml}
         `;
 
         activitiesList.appendChild(activityCard);
@@ -39,6 +57,25 @@ document.addEventListener("DOMContentLoaded", () => {
       activitiesList.innerHTML = "<p>Failed to load activities. Please try again later.</p>";
       console.error("Error fetching activities:", error);
     }
+  }
+
+  // Helper: generate initials from a name/email
+  function getInitials(text) {
+    if (!text) return "";
+    const parts = String(text).trim().split(/[\s.@_-]+/).filter(Boolean);
+    if (parts.length === 0) return "";
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+
+  // Helper: simple HTML escape
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
   }
 
   // Handle form submission
